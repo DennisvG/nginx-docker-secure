@@ -1,0 +1,56 @@
+# build extra nginx modules
+FROM registry.access.redhat.com/ubi8/nginx-120:latest as build-stage
+# Environment settings
+# Correction NGINX versionnumber because ubi prints "1.20" instead of "1.20.0"
+ENV NGINX_VERSION=${NGINX_VERSION}.0
+
+# More headers settings
+ENV MORE_HEADERS_VERSION=0.33
+ENV MORE_HEADERS_GITREPO=openresty/headers-more-nginx-module
+
+# USER root needed for installing tools
+USER root
+# Install required tools
+RUN dnf update -y
+RUN dnf install -y redhat-rpm-config
+# epel-release needed for geoip
+RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+RUN dnf install -y gcc \
+    make \
+    wget \
+    pcre-devel \
+    openssl-devel \
+    zlib-devel \
+    libxslt-devel \
+    gd-devel \
+    perl-devel \
+    perl-ExtUtils-Embed \
+    libedit-devel \
+    geoip-devel
+
+# Download sources for nginx and headers_more
+RUN wget "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -O nginx.tar.gz && \
+    wget "https://github.com/${MORE_HEADERS_GITREPO}/archive/v${MORE_HEADERS_VERSION}.tar.gz" -O extra_module.tar.gz
+
+RUN rm -rf /usr/src/nginx /usr/src/extra_module && mkdir -p /usr/src/nginx /usr/src/extra_module && \
+    tar -zxC /usr/src/nginx -f nginx.tar.gz && \
+    tar -xzC /usr/src/extra_module -f extra_module.tar.gz
+
+WORKDIR /usr/src/nginx/nginx-${NGINX_VERSION}
+
+# Reuse same cli arguments as the ubi8 nginx-120 image used to build
+RUN CONFARGS=$(nginx -V 2>&1 | sed -n -e 's/^.*arguments: //p') && \
+    sh -c "./configure --with-compat $CONFARGS --add-dynamic-module=/usr/src/extra_module/*" && make modules
+
+# production stage
+FROM registry.access.redhat.com/ubi8/nginx-120:latest as production-stage
+# Correction versionnumber because ubi prints "1.20" instead of "1.20.0"
+ENV NGINX_VERSION=${NGINX_VERSION}.0
+# install extra module
+COPY --from=build-stage /usr/src/nginx/nginx-${NGINX_VERSION}/objs/*_module.so /etc/nginx/modules/
+# Add new nginx.conf to /etc/nginx/nginx.conf
+ADD $WORKSPACE/nginx/nginx.conf /etc/nginx/
+# Add default server configuration to /etc/nginx/conf.d as an example
+# Overwrite with your own using configmap.
+ADD $WORKSPACE/nginx/default.conf /etc/nginx/conf.d/
+EXPOSE 8080
