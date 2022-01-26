@@ -5,6 +5,8 @@ Read the **Dockerfile** for how they are build.
 
 Use of **nginx/nginx.conf** and **nginx/default.conf** as an example. Works in most cases.
 
+**Do not use the main branch in Jenkins for building the images**
+
 ## nginx-stable-alpine branch
 
 This one uses the dockerimage from NGINX, version stable-alpine
