@@ -26,7 +26,9 @@ pipeline {
         milestone 1
         sh '''echo \'Push image to imageRegisterUrl\' '''
         script {
-          docker.withRegistry(imageRegisterUrl, imageRegisterCredentials ) {
+          // Use imageRegisterUrl if you donn't use Dockerhub
+          //docker.withRegistry(imageRegisterUrl, imageRegisterCredentials ) {
+          docker.withRegistry('', imageRegisterCredentials ) {
             // push image with tag ${imageVersion}
             dockerImage.push()
             // push image with tag 'latest'
