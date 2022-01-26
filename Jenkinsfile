@@ -1,5 +1,3 @@
-@Library(['duo-shared-libraries@master', 'security-libraries']) _
-
 pipeline {
   environment {
     // imageRegisterUrl empty for using default Dockerhub 
